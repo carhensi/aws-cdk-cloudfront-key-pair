@@ -3,6 +3,7 @@
 [![npm version](https://badge.fury.io/js/@carhensi%2Faws-cdk-cloudfront-key-pair.svg)](https://badge.fury.io/js/@carhensi%2Faws-cdk-cloudfront-key-pair)
 [![Build Status](https://github.com/carhensi/aws-cdk-cloudfront-key-pair/workflows/build/badge.svg)](https://github.com/carhensi/aws-cdk-cloudfront-key-pair/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Security](https://snyk.io/test/github/carhensi/aws-cdk-cloudfront-key-pair/badge.svg)](https://snyk.io/test/github/carhensi/aws-cdk-cloudfront-key-pair)
 
 AWS CDK L3 construct for managing [CloudFront](https://aws.amazon.com/cloudfront) trusted key
 group [key pairs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-trusted-signers.html).
