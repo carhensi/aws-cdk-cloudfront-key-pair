@@ -22,6 +22,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24.x
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            src/create-key-pair/package-lock.json
 
       - name: Install Dependencies
         run: npm ci
