@@ -30,11 +30,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Install Jest globally
-        run: npm install -g jest
-
       - name: Install Lambda Dependencies
         run: npm ci --prefix src/create-key-pair
+
+      - name: Install esbuild
+        run: npm install -g esbuild
 
       - name: Build Lambda
         run: npm run build --prefix src/create-key-pair
