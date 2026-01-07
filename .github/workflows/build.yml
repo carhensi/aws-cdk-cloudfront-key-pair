@@ -13,6 +13,9 @@ on:
     paths-ignore:
       - '**.md'
 
+permissions:
+  contents: read
+
 jobs:
   node:
     runs-on: ubuntu-24.04-arm
