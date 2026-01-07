@@ -32,40 +32,98 @@ npm install @carhensi/aws-cdk-cloudfront-key-pair --save
 
 ## Usage
 
+### Basic Example
+
 ```ts
+import * as cdk from 'aws-cdk-lib';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import {CloudFrontKeyPair} from '@carhensi/aws-cdk-cloudfront-key-pair';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import { CloudFrontKeyPair } from '@carhensi/aws-cdk-cloudfront-key-pair';
 
-// Generate an RSA key pair and create a CloudFront public key with the contents.
-const {publicKey} = new CloudFrontKeyPair(this, 'CloudFrontKeyPair', {
-  name: 'cloudfront-key-pair',
-  description: 'CloudFront Key Pair',
-});
+export class MyStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
 
-// Create a CloudFront key group and assign the created CloudFront public key.
-const keyGroup = new cloudfront.KeyGroup(this, 'KeyGroup', {
-  items: [publicKey],
+    // 1. Create the key pair
+    const keyPair = new CloudFrontKeyPair(this, 'CloudFrontKeyPair', {
+      keyPairName: 'my-app-keypair',
+      description: 'Key pair for signed URLs',
+      // Optional: replicate secrets to other regions
+      secretRegions: ['us-west-2', 'eu-west-1'],
+    });
+
+    // 2. Create a key group with the public key
+    const keyGroup = new cloudfront.KeyGroup(this, 'KeyGroup', {
+      items: [keyPair.publicKey],
+      comment: 'Key group for private content',
+    });
+
+    // 3. Create CloudFront distribution with signed URLs
+    const distribution = new cloudfront.Distribution(this, 'Distribution', {
+      defaultBehavior: {
+        origin: new origins.S3Origin(myBucket),
+        trustedKeyGroups: [keyGroup],
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+    });
+  }
+}
+```
+
+### Configuration Options
+
+```ts
+new CloudFrontKeyPair(this, 'KeyPair', {
+  keyPairName: 'my-keypair',           // Required: Name prefix for secrets
+  description: 'My key pair',          // Required: Description
+  secretRegions: ['us-west-2'],        // Optional: Cross-region replication
+  architecture: lambda.Architecture.ARM_64, // Optional: Lambda architecture (default: ARM64)
 });
 ```
 
-The public and private keys are stored in AWS Secrets Manager. The secrets are prefixed with the `name` used for the
-CloudFront key pair, with a suffix to distinguish between each key type, these being `/public` and `/private`. For the
-above example, the secrets are named:
+### Accessing Keys for Signing URLs
 
-| Key Type | Secret Name                 |
-| -------- | --------------------------- |
-| Public   | cloudfront-key-pair/public  |
-| Private  | cloudfront-key-pair/private |
+The keys are automatically stored in AWS Secrets Manager:
 
-You can retrieve the above keys from AWS Secrets Manager by using the AWS CLI or alternatively from your application
-using the AWS SDK for signing URLs:
+| Key Type | Secret Name Pattern        | Example                    |
+| -------- | -------------------------- | -------------------------- |
+| Public   | `{keyPairName}/public`     | `my-keypair/public`        |
+| Private  | `{keyPairName}/private`    | `my-keypair/private`       |
 
+#### Using AWS CLI
 ```sh
+# Get private key for signing
 aws secretsmanager get-secret-value \
-  --secret-id cloudfront-key-pair/private \
+  --secret-id my-keypair/private \
   --query SecretString \
   --output text
 ```
+
+#### Using AWS SDK (Node.js)
+```ts
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+
+const client = new SecretsManagerClient({ region: 'us-east-1' });
+const command = new GetSecretValueCommand({ SecretId: 'my-keypair/private' });
+const response = await client.send(command);
+const privateKey = response.SecretString;
+
+// Use with CloudFront URL signing libraries
+```
+
+### Best Practices
+
+- **Cross-Region Replication**: Use `secretRegions` for multi-region applications
+- **IAM Permissions**: Grant minimal permissions to access only required secrets
+- **Key Rotation**: Consider implementing key rotation for long-lived applications
+- **Monitoring**: Set up CloudWatch alarms for secret access patterns
+
+### Common Use Cases
+
+1. **Private Content Delivery**: Restrict access to premium content
+2. **Time-Limited Access**: Generate expiring URLs for temporary access
+3. **User-Specific Content**: Create personalized signed URLs
+4. **API Protection**: Secure API endpoints behind CloudFront
 
 ## Acknowledgments
 
