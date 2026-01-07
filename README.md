@@ -1,38 +1,40 @@
-# aws-cdk-cloudfront-key-pair
+# @carhensi/aws-cdk-cloudfront-key-pair
+
+[![npm version](https://badge.fury.io/js/@carhensi%2Faws-cdk-cloudfront-key-pair.svg)](https://badge.fury.io/js/@carhensi%2Faws-cdk-cloudfront-key-pair)
+[![Build Status](https://github.com/carhensi/aws-cdk-cloudfront-key-pair/workflows/build/badge.svg)](https://github.com/carhensi/aws-cdk-cloudfront-key-pair/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 AWS CDK L3 construct for managing [CloudFront](https://aws.amazon.com/cloudfront) trusted key
-group [key pairs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-trusted-signers.html)
-.
+group [key pairs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-trusted-signers.html).
 
-This construct library extends the features of CloudFormation by enabling you to easily provision and manage CloudFront
-trusted group key pairs for restricting access to your CloudFront distribution's origins using the AWS CDK and signed
-URLs.
+## Features
 
-1. Generates 2048 bit RSA key pair.
-2. Stores the RSA key pair in [AWS Secrets Manager](https://aws.amazon.com/secrets-manager).
-3. Provisions CloudFront public key to be used with a trusted key group.
+- 🔐 **Secure Key Generation**: Generates 2048-bit RSA key pairs using Node.js 24
+- 🏗️ **ARM64 Optimized**: Lambda functions run on ARM64 architecture for better performance
+- 🔒 **AWS Secrets Manager**: Stores keys securely with cross-region replication support
+- 🚀 **Modern Stack**: Built with TypeScript 5.7, CDK 2.233+, and comprehensive Jest testing
+- 📦 **Easy Integration**: Simple CDK construct interface
 
-The advantage of storing the RSA key pair in AWS Secrets Manager is that AWS Secrets Manager also serves as a place for
-your applications to retrieve the private key when signing URLs, allowing you to leverage IAM for access control to the
-secrets.
+This construct library extends CloudFormation capabilities by enabling you to easily provision and manage CloudFront
+trusted group key pairs for restricting access to your CloudFront distribution's origins using signed URLs.
 
 ## Installation
 
 To install and use this package, install the following packages using your package manager (e.g. npm):
 
-- aws-cdk-cloudfront-key-pair
-- aws-cdk-lib (^2.80.0)
+- @carhensi/aws-cdk-cloudfront-key-pair
+- aws-cdk-lib (^2.233.0)
 - constructs (^10.0.0)
 
 ```sh
-npm install aws-cdk-cloudfront-key-pair --save
+npm install @carhensi/aws-cdk-cloudfront-key-pair --save
 ```
 
 ## Usage
 
 ```ts
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import {CloudFrontKeyPair} from 'aws-cdk-cloudfront-key-pair';
+import {CloudFrontKeyPair} from '@carhensi/aws-cdk-cloudfront-key-pair';
 
 // Generate an RSA key pair and create a CloudFront public key with the contents.
 const {publicKey} = new CloudFrontKeyPair(this, 'CloudFrontKeyPair', {
@@ -64,3 +66,11 @@ aws secretsmanager get-secret-value \
   --query SecretString \
   --output text
 ```
+
+## Acknowledgments
+
+This project is based on the original work by [balzanelli](https://github.com/balzanelli/aws-cdk-cloudfront-key-pair) and [Enrico Bertolotti](https://github.com/enricobertolotti). Thanks for the solid foundation! 🙏
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.

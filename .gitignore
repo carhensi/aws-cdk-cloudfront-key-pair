@@ -1,7 +1,10 @@
 *.js
 !jest.config.js
+!**/*.test.js
+!**/jest.config.js
 *.d.ts
 node_modules
+coverage
 
 # CDK asset staging directory
 .cdk.staging

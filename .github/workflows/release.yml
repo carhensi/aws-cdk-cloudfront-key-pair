@@ -13,15 +13,27 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 24.x
 
       - name: Install Dependencies
         run: npm ci
 
+      - name: Install Jest globally
+        run: npm install -g jest
+
+      - name: Install Lambda Dependencies
+        run: npm ci --prefix src/create-key-pair
+
+      - name: Build Lambda
+        run: npm run build --prefix src/create-key-pair
+
       - name: Build
         run: npm run build
+
+      - name: Test
+        run: npm test
 
       - name: Release
         env:

@@ -16,7 +16,7 @@ export class KeyPair extends Construct {
   /** @readonly ARN of the private key secret */
   readonly privateKeyArn: string;
 
-  constructor(scope: Construct, id: string, props: KeyPairProps) {
+  constructor(scope: Construct, id: string, private readonly props: KeyPairProps) {
     super(scope, id);
 
     const lambdaFunction = this.createKeyPairFunction();
@@ -45,7 +45,8 @@ export class KeyPair extends Construct {
       {
         description: 'Custom CFN resource: Create Key Pair',
         timeout: Duration.seconds(10),
-        runtime: lambda.Runtime.NODEJS_22_X,
+        runtime: lambda.Runtime.NODEJS_24_X,
+        architecture: this.props.architecture ?? lambda.Architecture.ARM_64,
         entry: path.join(projectRoot, 'index.ts'),
         depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
         projectRoot,
