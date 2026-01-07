@@ -47,7 +47,7 @@ export class MyStack extends cdk.Stack {
     // 1. Create the key pair
     const keyPair = new CloudFrontKeyPair(this, 'CloudFrontKeyPair', {
       keyPairName: 'my-app-keypair',
-      description: 'Key pair for signed URLs',
+      keyPairDescription: 'Key pair for signed URLs',
       // Optional: replicate secrets to other regions
       secretRegions: ['us-west-2', 'eu-west-1'],
     });
@@ -74,12 +74,18 @@ export class MyStack extends cdk.Stack {
 
 ```ts
 new CloudFrontKeyPair(this, 'KeyPair', {
-  keyPairName: 'my-keypair',           // Required: Name prefix for secrets
-  description: 'My key pair',          // Required: Description
-  secretRegions: ['us-west-2'],        // Optional: Cross-region replication
-  architecture: lambda.Architecture.ARM_64, // Optional: Lambda architecture (default: ARM64)
+  keyPairName: 'my-keypair',                 // Required: Name prefix for secrets
+  keyPairDescription: 'My key pair',         // Required: Description
+  keyType: 'RSA_2048',                       // Optional: 'RSA_2048' (default) or 'ECDSA_256'
+  secretRegions: ['us-west-2'],              // Optional: Cross-region replication
+  architecture: lambda.Architecture.ARM_64,  // Optional: Lambda architecture (default: ARM64)
 });
 ```
+
+| Key Type | Use Case |
+|----------|----------|
+| `RSA_2048` | Default, broader library compatibility |
+| `ECDSA_256` | Smaller signatures, faster signing, modern crypto |
 
 ### Accessing Keys for Signing URLs
 
@@ -109,6 +115,16 @@ const response = await client.send(command);
 const privateKey = response.SecretString;
 
 // Use with CloudFront URL signing libraries
+```
+
+### Granting Access (L3 Pattern)
+
+```ts
+// Grant a Lambda function access to sign URLs
+keyPair.grantReadPrivateKey(mySigningFunction);
+
+// Grant access to read the public key
+keyPair.grantReadPublicKey(myVerificationFunction);
 ```
 
 ### Best Practices

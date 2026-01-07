@@ -1,223 +1,131 @@
 import { CloudFormationCustomResourceEvent } from 'aws-lambda';
-import {
-  SecretsManager,
-  type ReplicaRegionType,
-} from '@aws-sdk/client-secrets-manager';
+import { SecretsManager } from '@aws-sdk/client-secrets-manager';
 import { generateKeyPairSync } from 'crypto';
 import * as https from 'node:https';
 
-export interface CreateKeyPairResourceProperties {
+interface Props {
   readonly Name: string;
   readonly Description: string;
+  readonly KeyType?: 'RSA_2048' | 'ECDSA_256';
   readonly SecretRegions?: string[];
 }
 
-const secretsManager = new SecretsManager();
+const sm = new SecretsManager();
 
 export const handler = async (
   event: CloudFormationCustomResourceEvent,
 ): Promise<void> => {
-  const props =
-    event.ResourceProperties as unknown as CreateKeyPairResourceProperties;
-
-  switch (event.RequestType) {
-    case 'Create': {
-      await createKeyPair(event, props);
-      break;
-    }
-
-    case 'Delete': {
-      await deleteKeyPair(event, props);
-      break;
-    }
+  const props = event.ResourceProperties as unknown as Props;
+  try {
+    const data =
+      event.RequestType === 'Delete'
+        ? await deleteSecrets(props.Name)
+        : await createSecrets(props);
+    await respond(event, 'SUCCESS', data);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`${event.RequestType} failed: ${msg}`);
+    await respond(event, 'FAILED', undefined, msg);
   }
 };
 
-async function sendResponse(
+function generateKeyPair(keyType: 'RSA_2048' | 'ECDSA_256' = 'RSA_2048') {
+  if (keyType === 'ECDSA_256') {
+    const { publicKey, privateKey } = generateKeyPairSync('ec', {
+      namedCurve: 'prime256v1',
+    });
+    return {
+      pub: publicKey.export({ type: 'spki', format: 'pem' }) as string,
+      priv: privateKey.export({ type: 'sec1', format: 'pem' }) as string,
+    };
+  }
+  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+  });
+  return {
+    pub: publicKey.export({ type: 'spki', format: 'pem' }) as string,
+    priv: privateKey.export({ type: 'pkcs1', format: 'pem' }) as string,
+  };
+}
+
+async function createSecrets(props: Props) {
+  const { pub, priv } = generateKeyPair(props.KeyType);
+  const regions = props.SecretRegions?.map((Region) => ({ Region }));
+
+  const [pubArn, privArn] = await Promise.all([
+    sm.createSecret({
+      Name: `${props.Name}/public`,
+      SecretString: pub,
+      Description: `${props.Description} (Public)`,
+      AddReplicaRegions: regions,
+    }),
+    sm.createSecret({
+      Name: `${props.Name}/private`,
+      SecretString: priv,
+      Description: `${props.Description} (Private)`,
+      AddReplicaRegions: regions,
+    }),
+  ]);
+
+  return {
+    PublicKey: pub,
+    PublicKeyArn: pubArn.ARN,
+    PrivateKeyArn: privArn.ARN,
+  };
+}
+
+async function deleteSecrets(name: string) {
+  const secrets = [`${name}/public`, `${name}/private`];
+  await Promise.all(
+    secrets.map(async (id) => {
+      const { SecretList } = await sm.listSecrets({
+        Filters: [{ Key: 'name', Values: [id] }],
+      });
+      if (SecretList?.length)
+        await sm.deleteSecret({
+          SecretId: id,
+          ForceDeleteWithoutRecovery: true,
+        });
+    }),
+  );
+  return {};
+}
+
+async function respond(
   event: CloudFormationCustomResourceEvent,
   status: string,
-  data?: {
-    [key: string]: any;
-  },
+  data?: Record<string, unknown>,
   reason?: string,
 ): Promise<void> {
+  const body = JSON.stringify({
+    Status: status,
+    Reason: reason,
+    PhysicalResourceId: event.ResourceProperties.Name,
+    StackId: event.StackId,
+    RequestId: event.RequestId,
+    LogicalResourceId: event.LogicalResourceId,
+    Data: data,
+  });
+
+  const url = new URL(event.ResponseURL);
   return new Promise((resolve, reject) => {
-    const response: unknown | any = {
-      Status: status,
-      PhysicalResourceId: event.ResourceProperties.Name,
-      StackId: event.StackId,
-      RequestId: event.RequestId,
-      LogicalResourceId: event.LogicalResourceId,
-      Data: data,
-    };
-    if (reason) {
-      response.Reason = reason;
-    }
-
-    const url = new URL(event.ResponseURL);
-    const body = JSON.stringify(response);
-
     https
       .request({
         hostname: url.hostname,
         port: 443,
         path: `${url.pathname}${url.search}`,
         method: 'PUT',
-        headers: {
-          'content-type': '',
-          'content-length': body.length,
-        },
+        headers: { 'content-type': '', 'content-length': body.length },
       })
       .on('error', reject)
-      .on('response', (response) => {
-        response.resume();
-
-        if (response.statusCode && response.statusCode >= 400) {
-          reject(
-            new Error(
-              `Server returned error ${response.statusCode}: ${response.statusMessage}`,
-            ),
-          );
+      .on('response', (res) => {
+        res.resume();
+        if (res.statusCode && res.statusCode >= 400) {
+          reject(new Error(`HTTP ${res.statusCode}`));
         } else {
           resolve();
         }
       })
-      .end(body, 'utf-8');
+      .end(body);
   });
-}
-
-async function createKeyPair(
-  event: CloudFormationCustomResourceEvent,
-  props: CreateKeyPairResourceProperties,
-): Promise<void> {
-  try {
-    const { publicKey, privateKey } = generateKeyPair();
-
-    console.log(publicKey);
-
-    const publicKeyArn = await saveSecret(
-      `${props.Name}/public`,
-      publicKey.toString(),
-      `${props.Description} (Public Key)`,
-      props.SecretRegions,
-    );
-
-    const privateKeyArn = await saveSecret(
-      `${props.Name}/private`,
-      privateKey.toString(),
-      `${props.Description} (Private Key)`,
-      props.SecretRegions,
-    );
-
-    console.log(publicKeyArn);
-    console.log(privateKeyArn);
-
-    await sendResponse(event, 'SUCCESS', {
-      PublicKey: publicKey.toString(),
-      PublicKeyArn: publicKeyArn,
-      PrivateKeyArn: privateKeyArn,
-    });
-  } catch (err: unknown | any) {
-    console.error(err);
-
-    await sendResponse(
-      event,
-      'FAILED',
-      undefined,
-      `${event.RequestType} failed`,
-    );
-  }
-}
-
-function generateKeyPair(): {
-  publicKey: string | Buffer;
-  privateKey: string | Buffer;
-} {
-  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 2048,
-  });
-
-  return {
-    publicKey: publicKey.export({
-      type: 'spki',
-      format: 'pem',
-    }),
-    privateKey: privateKey.export({
-      type: 'pkcs1',
-      format: 'pem',
-    }),
-  };
-}
-
-function getSecretReplicaRegions(
-  regions?: string[] | undefined,
-): ReplicaRegionType[] | undefined {
-  return regions?.map((region) => {
-    return {
-      Region: region,
-    };
-  });
-}
-
-async function saveSecret(
-  secretId: string,
-  secretString: string,
-  description: string,
-  regions?: string[] | undefined,
-): Promise<string> {
-  const { ARN } = await secretsManager.createSecret({
-    Name: secretId,
-    Description: description,
-    SecretString: secretString,
-    AddReplicaRegions: getSecretReplicaRegions(regions),
-  });
-
-  if (!ARN) {
-    throw new Error(`ARN for Secrets Manager secret ${secretId} not found.`);
-  }
-
-  return ARN;
-}
-
-async function deleteKeyPair(
-  event: CloudFormationCustomResourceEvent,
-  props: CreateKeyPairResourceProperties,
-): Promise<void> {
-  try {
-    const publicKeyArn = await deleteKeySecret(`${props.Name}/public`);
-    const privateKeyArn = await deleteKeySecret(`${props.Name}/private`);
-
-    await sendResponse(event, 'SUCCESS', {
-      PublicKeyArn: publicKeyArn,
-      PrivateKeyArn: privateKeyArn,
-    });
-  } catch (err: unknown | any) {
-    console.error(err);
-
-    await sendResponse(
-      event,
-      'FAILED',
-      undefined,
-      `${event.RequestType} failed`,
-    );
-  }
-}
-
-async function deleteKeySecret(secretId: string): Promise<string | undefined> {
-  if (await secretExists(secretId)) {
-    const { ARN } = await secretsManager.deleteSecret({
-      SecretId: secretId,
-      ForceDeleteWithoutRecovery: true,
-    });
-
-    return ARN;
-  }
-}
-
-async function secretExists(secretId: string): Promise<boolean> {
-  const { SecretList } = await secretsManager.listSecrets({
-    Filters: [{ Key: 'name', Values: [secretId] }],
-  });
-
-  return !!SecretList && SecretList?.length > 0;
 }
