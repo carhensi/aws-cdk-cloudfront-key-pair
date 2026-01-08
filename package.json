@@ -19,6 +19,7 @@
     "aws",
     "cdk",
     "aws-cdk",
+    "awscdk",
     "aws-cdk-construct",
     "cloudfront",
     "key-pair"
@@ -26,7 +27,8 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "jsii",
+    "package": "jsii-pacmak",
     "test": "jest",
     "test:lambda": "npm run test --prefix src/create-key-pair",
     "test:all": "npm test && npm run test:lambda",
@@ -53,6 +55,8 @@
     "eslint": "^9.39.2",
     "husky": "^9.1.7",
     "jest": "^30.2.0",
+    "jsii": "^5.9.22",
+    "jsii-pacmak": "^1.125.0",
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
     "semantic-release": "^25.0.2",
@@ -63,5 +67,8 @@
   "peerDependencies": {
     "aws-cdk-lib": "^2.233.0",
     "constructs": "^10.0.0"
+  },
+  "jsii": {
+    "outdir": "dist"
   }
 }

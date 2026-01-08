@@ -1,8 +1,8 @@
 *.js
-!jest.config.js
-!**/*.test.js
-!**/jest.config.js
 *.d.ts
+!jest.config.js
+!eslint.config.mjs
+!src/create-key-pair/index.test.js
 node_modules
 coverage
 
@@ -13,6 +13,7 @@ cdk.context.json
 
 # Build
 dist
+tsconfig.tsbuildinfo
 
 # Jetbrains IDE files
 .idea
