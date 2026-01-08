@@ -22,7 +22,11 @@
     "awscdk",
     "aws-cdk-construct",
     "cloudfront",
-    "key-pair"
+    "key-pair",
+    "trusted-key-group",
+    "signed-urls",
+    "content-delivery",
+    "security"
   ],
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

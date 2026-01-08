@@ -3,6 +3,7 @@
 !*.d.ts
 jest.config.js
 tsconfig.json
+tsconfig.tsbuildinfo
 test
 !src/create-key-pair/*
 src/create-key-pair/node_modules
@@ -10,3 +11,6 @@ src/create-key-pair/node_modules
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+
+# Ensure .jsii is included
+!.jsii
